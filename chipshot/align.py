@@ -5,70 +5,95 @@ import argparse
 from Bio import SeqIO
 
 
+def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
+                 three_prime_thresh, both_ends_thresh):
+    if (mean_threshold != 0 or five_prime_thresh != 0 or
+            three_prime_thresh != 0 or both_ends_thresh != 0):
+        with open(fastq, "r") as fastq_file, open(output, "a") as outfile:
+            fq = SeqIO.parse(fastq_file, "fastq")
+            for record in fq:
+                qualities = record.letter_annotations["phred_quality"]
+                mean_quality = sum(qualities)/len(qualities)
+                if mean_quality >= mean_threshold:
+                    if both_ends_thresh > 0:
+                        five_prime_thresh = both_ends_thresh
+                        three_prime_thresh = both_ends_thresh
+                    start = 0
+                    end = len(record.seq)
+                    if sum(i >= five_prime_thresh and
+                           i >= three_prime_thresh for i in qualities) > 0:
+                        if five_prime_thresh != 0:
+                            for i in range(len(qualities)):
+                                if qualities[i] >= five_prime_thresh:
+                                    start = i
+                                    break
+                        if three_prime_thresh != 0:
+                            for i in range(len(qualities)):
+                                if qualities[::-1][i] >= three_prime_thresh:
+                                    end = - (i + 1)
+                                    break
+
+                    SeqIO.write(record[start:end], outfile, "fastq")
+    return len(fq[0])
+
+
 def index(reference):
     subprocess.call(["bwa", "index", reference])
 
 
-def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
-                 three_prime_thresh, both_ends_thresh):
-    with open(fastq, "r") as fastq_file:
-        fq = SeqIO.parse(fastq_file, "fastq")
-        for record in fq:
-            qualities = record.letter_annotations["phred_quality"]
-            mean_quality = sum(qualities)/len(qualities)
-            # Have to define mean_threshold
-            if mean_quality >= mean_threshold:
-                if both_ends_thresh > 0:
-                    five_prime_thresh = both_ends_thresh
-                    three_prime_thresh = both_ends_thresh
-                start = 0
-                end = len(record.seq)
-                if sum(i >= five_prime_thresh and
-                       i >= three_prime_thresh for i in qualities) >= 1:
-                    if five_prime_thresh != 0:
-                        for i in range(len(qualities)):
-                            # Have to define min_base_qual
-                            if qualities[i] >= five_prime_thresh:
-                                start = i
-                                break
-                    if three_prime_thresh != 0:
-                        for i in range(len(qualities)):
-                            if qualities[::-1][i] >= three_prime_thresh:
-                                end = - (i + 1)
-                                break
+def align(reference, fastq, output, bwa_args):
+    index(reference)
 
-                    with open(output, "a") as outfile:
-                        SeqIO.write(record[start:end], outfile, "fastq")
+    if "-f" not in bwa_args:
+        args = ["bwa", "mem"].extend(bwa_args).extend([">", output])
+    else:
+        args = ["bwa", "mem"].extend(bwa_args)
+
+    subprocess.call(args)
 
 
 def main(argv):
     parser = argparse.ArgumentParser(description="Filter fastq file(s) and \
                                      align to reference genome.")
-    parser.add_argument("-f", help="quality cutoff for all bases working from \
+    parser.add_argument("--five", help="quality cutoff for all bases working from \
                         the 5' end of the read inward", type=int, default=0,
-                        nargs="?")
-    parser.add_argument("-t", help="quality cutoff for all bases working from \
+                        nargs="?", metavar="quality")
+    parser.add_argument("--three", help="quality cutoff for all bases working from \
                         the 3' end of the read inward", type=int, default=0,
-                        nargs="?")
-    parser.add_argument("-b", help="quality cutoff for all bases working from \
+                        nargs="?", metavar="quality")
+    parser.add_argument("--both", help="quality cutoff for all bases working from \
                         both ends of the read inward", type=int, default=0,
-                        nargs="?")
-    parser.add_argument("-q", help="mean quality cutoff all reads", type=int,
-                        default=0, nargs="?")
-    parser.add_argument("-r", help="file path to the reference genome",
-                        type=str, nargs="?")
-    parser.add_argument("-i", help="file path(s) to the fastq files to be \
-                        aligned", nargs="*", type=str)
-    parser.add_argument("-o", help="path to output file", nargs="?", type=str)
+                        nargs="?", metavar="quality")
+    parser.add_argument("--quality", help="mean quality cutoff all reads",
+                        type=int, default=0, nargs="?", metavar="quality")
+    parser.add_argument("--min-length", help="minimum length of reads after \
+                        all trimming is performed", type=int, default=0,
+                        nargs="?", metavar="length")
+    parser.add_argument("--reference", help="file path to the reference \
+                        genome", type=str, nargs="?", metavar="reference")
+    parser.add_argument("--input", help="file path(s) to the fastq files to be \
+                        aligned", nargs="*", type=str, metavar="fastq")
+    parser.add_argument("--output", help="output file prefix", nargs=1,
+                        type=str, metavar="prefix")
 
-    args = parser.parse_args(argv[1:])
+    args, bwa_args = parser.parse_known_args(argv[1:])
 
-    for fastq in args.i:
-        if args.o:
-            output = args.o
+    output = args.o + ".sam"
+
+    pair = 1
+
+    for fastq in args.input:
+        if len(args.input) == 1:
+            fastq_output = args.output + ".fastq"
         else:
-            output = fastq.split("\.")[0] + "_filtered.fastq"
-        fastq_filter(fastq, output, args.q, args.f, args.t, args.b)
+            fastq_output = "{}-{}.fastq".format(args.output, pair)
+
+        fastq_filter(fastq_output, output, args.quality, args.five, args.three,
+                     args.both)
+
+        pair += 1
+
+    align(args.r, fastq, output, bwa_args)
 
 if __name__ == "__main__":
     main(sys.argv)
