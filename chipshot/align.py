@@ -71,29 +71,35 @@ def main(argv):
                         nargs="?", metavar="length")
     parser.add_argument("--reference", help="file path to the reference \
                         genome", type=str, nargs="?", metavar="reference")
-    parser.add_argument("--input", help="file path(s) to the fastq files to be \
+    parser.add_argument("input", help="file path(s) to the fastq files to be \
                         aligned", nargs="*", type=str, metavar="fastq")
-    parser.add_argument("--output", help="output file prefix", nargs=1,
+    parser.add_argument("output", help="output file prefix", nargs=1,
                         type=str, metavar="prefix")
 
     args, bwa_args = parser.parse_known_args(argv[1:])
 
-    output = args.o + ".sam"
+    output_prefix = args.output[0]
+    output = output_prefix + ".sam"
 
     pair = 1
 
+    filtered_fastqs = []
+
     for fastq in args.input:
         if len(args.input) == 1:
-            fastq_output = args.output + ".fastq"
+            fastq_output = output_prefix + ".fastq"
         else:
-            fastq_output = "{}-{}.fastq".format(args.output, pair)
+            fastq_output = "{}-{}.fastq".format(output_prefix, pair)
 
-        fastq_filter(fastq_output, output, args.quality, args.five, args.three,
-                     args.both)
+        fastq_file = fastq_filter(fastq, fastq_output, args.quality, args.five,
+                                  args.three, args.both)
+
+        filtered_fastqs.append(fastq_file)
 
         pair += 1
 
-    align(args.r, fastq, output, bwa_args)
+    if args.reference:
+        align(args.reference, filtered_fastqs, output, bwa_args)
 
 if __name__ == "__main__":
     main(sys.argv)
