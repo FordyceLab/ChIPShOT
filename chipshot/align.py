@@ -34,7 +34,9 @@ def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
                                     break
 
                     SeqIO.write(record[start:end], outfile, "fastq")
-    return len(fq[0])
+        return output
+    else:
+        return fastq
 
 
 def index(reference):
@@ -43,13 +45,14 @@ def index(reference):
 
 def align(reference, fastq, output, bwa_args):
     index(reference)
+    args = ["bwa", "mem"]
+    args.extend(bwa_args)
+    args.append(reference)
+    args.extend(fastq)
+    print(args)
 
-    if "-f" not in bwa_args:
-        args = ["bwa", "mem"].extend(bwa_args).extend([">", output])
-    else:
-        args = ["bwa", "mem"].extend(bwa_args)
-
-    subprocess.call(args)
+    with open(output, "w") as outfile:
+        subprocess.call(args, stdout=outfile)
 
 
 def main(argv):
