@@ -1,6 +1,5 @@
 import subprocess
 import sys
-import os
 import argparse
 from Bio import SeqIO
 
