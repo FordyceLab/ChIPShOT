@@ -50,8 +50,10 @@ def align(reference, fastq, output, bwa_args):
     args.extend(fastq)
     print(args)
 
-    with open(output, "w") as outfile:
-        subprocess.call(args, stdout=outfile)
+    with open("{}.bam".format(output), "wb") as outfile:
+        alignment = subprocess.Popen(args, stdout=subprocess.PIPE)
+        subprocess.call(["samtools", "view", "-bS"],
+                        stdin=alignment.stdout, stdout=outfile)
 
 
 def main(argv):
