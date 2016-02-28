@@ -5,7 +5,7 @@ from Bio import SeqIO
 
 
 def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
-                 three_prime_thresh, both_ends_thresh):
+                 three_prime_thresh, both_ends_thresh, min_length):
     if (mean_threshold != 0 or five_prime_thresh != 0 or
             three_prime_thresh != 0 or both_ends_thresh != 0):
         with open(fastq, "r") as fastq_file, open(output, "a") as outfile:
@@ -31,8 +31,8 @@ def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
                                 if qualities[::-1][i] >= three_prime_thresh:
                                     end = - (i + 1)
                                     break
-
-                    SeqIO.write(record[start:end], outfile, "fastq")
+                    if len(record[start:end]) >= min_length:
+                        SeqIO.write(record[start:end], outfile, "fastq")
         return output
     else:
         return fastq
@@ -70,7 +70,7 @@ def main(argv):
                         nargs="?", metavar="quality")
     parser.add_argument("--quality", help="mean quality cutoff all reads",
                         type=int, default=0, nargs="?", metavar="quality")
-    parser.add_argument("--min-length", help="minimum length of reads after \
+    parser.add_argument("--minlength", help="minimum length of reads after \
                         all trimming is performed", type=int, default=0,
                         nargs="?", metavar="length")
     parser.add_argument("--reference", help="file path to the reference \
@@ -83,7 +83,6 @@ def main(argv):
     args, bwa_args = parser.parse_known_args(argv[1:])
 
     output_prefix = args.output[0]
-    output = output_prefix + ".sam"
 
     pair = 1
 
@@ -96,14 +95,14 @@ def main(argv):
             fastq_output = "{}-{}.fastq".format(output_prefix, pair)
 
         fastq_file = fastq_filter(fastq, fastq_output, args.quality, args.five,
-                                  args.three, args.both)
+                                  args.three, args.both, args.minlength)
 
         filtered_fastqs.append(fastq_file)
 
         pair += 1
 
     if args.reference:
-        align(args.reference, filtered_fastqs, output, bwa_args)
+        align(args.reference, filtered_fastqs, output_prefix, bwa_args)
 
 if __name__ == "__main__":
     main(sys.argv)
