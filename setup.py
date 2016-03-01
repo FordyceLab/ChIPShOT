@@ -14,9 +14,8 @@ setup(name="ChIPShOT",
       license='GPL v3 or later',
       include_package_data=True,
       install_requires=[
-        'matplotlib',
-        'numpy',
-        'scipy',
+        "biopython",
+        "scipy",
       ],
       scripts=['bin/'],
       zip_safe=False)
