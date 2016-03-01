@@ -1,7 +1,7 @@
 import subprocess
 import sys
 import os
-import getopt
+import argparse
 from urllib.request import urlopen
 from Bio import Entrez
 import xml.etree.ElementTree as ET
@@ -114,33 +114,27 @@ def main(argv):
     Args:
         argv (list) - list of command line arguments
     """
+    parser = argparse.ArgumentParser(description="Download .sra file and \
+                                     extract fastq or sam file from GEO")
+    parser.add_argument("--fastq", help="dump fastq files",
+                        action="store_true")
+    parser.add_argument("--sam", help="dump sam file", action="store_true")
+    parser.add_argument("--email", help="email address; required by GEO to \
+                        search their database", type=str, nargs=1,
+                        metavar="email")
+    parser.add_argument("ids", help="sample ID numbers from GEO", nargs="*",
+                        type=str, metavar="ID")
 
-    # Set the default arguments
-    dump_fq = False
-    dump_sam = False
-    email = ""
+    args = parser.parse_args(argv[1:])
+    email = args.email[0]
 
-    # Get command line arguments if none are supplied
-    if argv == "":
-        argv = sys.argv
-    else:
-        argv = argv[1:]
-
-    # Parse the arguments
-    opts, args = getopt.getopt(argv, shortopts="e:fs")
-
-    # Set the arguments based on the command line parameters
-    for opt, arg in opts:
-        if opt == "-f":
-            dump_fq = True
-        if opt == "-s":
-            dump_sam = True
-        if opt == "-e":
-            email = arg
+    if not args.ids:
+        print("Please provide a sample ID")
+        sys.exit(1)
 
     # For each GSM ID, search and download
-    for arg in args:
-        search(arg, email, dump_fq, dump_sam)
+    for sample_id in args.ids:
+        search(sample_id, email, args.fastq, args.sam)
 
 
 if __name__ == "__main__":
