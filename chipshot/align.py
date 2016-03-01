@@ -2,6 +2,7 @@ import subprocess
 import sys
 import argparse
 from Bio import SeqIO
+from tqdm import *
 
 
 def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
@@ -10,7 +11,7 @@ def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
             three_prime_thresh != 0 or both_ends_thresh != 0):
         with open(fastq, "r") as fastq_file, open(output, "a") as outfile:
             fq = SeqIO.parse(fastq_file, "fastq")
-            for record in fq:
+            for record in tqdm(fq):
                 qualities = record.letter_annotations["phred_quality"]
                 mean_quality = sum(qualities)/len(qualities)
                 if mean_quality >= mean_threshold:
@@ -48,7 +49,6 @@ def align(reference, fastq, output, bwa_args):
     args.extend(bwa_args)
     args.append(reference)
     args.extend(fastq)
-    print(args)
 
     with open("{}.bam".format(output), "wb") as outfile:
         alignment = subprocess.Popen(args, stdout=subprocess.PIPE)
@@ -89,6 +89,7 @@ def main(argv):
     filtered_fastqs = []
 
     for fastq in args.input:
+        print("Filtering " + fastq)
         if len(args.input) == 1:
             fastq_output = output_prefix + ".fastq"
         else:
