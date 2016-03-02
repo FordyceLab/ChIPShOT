@@ -24,5 +24,5 @@ setup(name="ChIPShOT",
             "align=align:main",
             "call_peaks=call_peaks:main"
         ],
-    },
+      },
       zip_safe=False)
