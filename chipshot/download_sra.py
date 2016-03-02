@@ -7,7 +7,7 @@ from Bio import Entrez
 import xml.etree.ElementTree as ET
 
 
-def search(gsm, email, dump_fq, dump_sam):
+def search(gsm, email, dump_fq, dump_sam, output):
     """
     Search the Sequence Read Archive for the given GSM ID(s) provided by the
     user and download the .sra files for all runs associated with that ID
@@ -57,7 +57,7 @@ def search(gsm, email, dump_fq, dump_sam):
         print('Multiple runs found for GSM ID "{gsm}"'.format(gsm=gsm))
 
     # Make the output directory
-    dirname = "./{gsm}".format(gsm=gsm)
+    dirname = "./{}".format(output)
 
     if not os.path.exists(dirname):
         os.mkdir(dirname)
@@ -65,13 +65,23 @@ def search(gsm, email, dump_fq, dump_sam):
     # Get the individual run accession number
     accessions = [run.get("accession") for run in runs]
 
+    if len(accessions) > 1:
+        append_acc = True
+    else:
+        append_acc = False
+
     # For each accession number in the list of runs
     for accession in accessions:
         print('Downloading sequence read archive for accession "{acc}"'
               .format(acc=accession))
 
+        if append_acc:
+            f = output + accession
+        else:
+            f = output
+
         # Download the .sra file and save in the approppriate directory
-        filename = "./{gsm}/{acc}.sra".format(gsm=gsm, acc=accession)
+        filename = "./{}/{}.sra".format(output, f)
         download(accession, filename)
 
         # If the user wanted to dump the fastq files or the sam file, do so
@@ -81,7 +91,7 @@ def search(gsm, email, dump_fq, dump_sam):
 
         if dump_sam:
             subprocess.call(["sam-dump", "--output-file",
-                             "{}/{}.sam".format(dirname, accession), filename])
+                             "{}/{}.sam".format(dirname, f), filename])
 
 
 def download(accession, outfile):
@@ -114,6 +124,8 @@ def main(argv):
     Args:
         argv (list) - list of command line arguments
     """
+
+    # Construct a parser and parse all of the command line arguments
     parser = argparse.ArgumentParser(description="Download .sra file and \
                                      extract fastq or sam file from GEO")
     parser.add_argument("--fastq", help="dump fastq files",
@@ -124,18 +136,21 @@ def main(argv):
                         metavar="email")
     parser.add_argument("ids", help="sample ID numbers from GEO", nargs="*",
                         type=str, metavar="ID")
+    parser.add_argument("output", help="output file prefix", nargs=1,
+                        metavar="prefix")
 
     args = parser.parse_args(argv[1:])
     email = args.email[0]
 
+    # Print an error and exit if a sample ID is not provided
     if not args.ids:
         print("Please provide a sample ID")
         sys.exit(1)
 
     # For each GSM ID, search and download
     for sample_id in args.ids:
-        search(sample_id, email, args.fastq, args.sam)
+        search(sample_id, email, args.fastq, args.sam, args.output[0])
 
-
+# Read command line arguments if the script is called directly
 if __name__ == "__main__":
     main(sys.argv)
