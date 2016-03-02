@@ -11,11 +11,18 @@ setup(name="ChIPShOT",
       author_email="tshimko@stanford.edu",
       url="https://github.com/FordyceLab/ChIPShOT",
       packages=["chipshot"],
-      license='GPL v3 or later',
+      license='MIT',
       include_package_data=True,
       install_requires=[
         "biopython",
         "scipy",
+        "tqdm",
       ],
-      scripts=['bin/'],
+      entry_points={
+        "console_scripts": [
+            "download_sra=download_sra:main",
+            "align=align:main",
+            "call_peaks=call_peaks:main"
+        ],
+    },
       zip_safe=False)
