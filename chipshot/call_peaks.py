@@ -7,6 +7,17 @@ import re
 
 
 def call_peaks(control_bam, treatment_bam, macs_args, output):
+    """
+    Provide an interface to MACS2 to call peaks from ChIP-seq data
+
+    Args:
+        control_bam (str) - file path to the control bam file
+        treatment_bam (str) - file path to the treatment bam file
+        macs_args (list) - command line arguments to pass to MACS2
+        output (str) - prefix for output files
+    """
+
+    # Construct the call
     args = ["macs2", "callpeak", "--nomodel", "-n", output, "-t"]
     args.extend(treatment_bam)
 
@@ -15,22 +26,41 @@ def call_peaks(control_bam, treatment_bam, macs_args, output):
 
     args.extend(macs_args)
 
+    # Call MACS2
     subprocess.call(args)
 
 
 def find_pwm_hits(narrow_peak, reference, pfm, output):
+    """
+    Search each peak for the best match against the specified position
+    frequency matrix
+
+    Args:
+        narrow_peak (str) - path to the narrowPeak file output by MACS2
+        reference (str) - file path to the reference genome
+        pfm (str) - file path to the position frequency matrix
+        output (str) - prefix for the output file
+    """
+
+    # Open the peaks and reference genome files
     with open(narrow_peak, "r") as peaks, open(reference, "r") as ref:
+        # Parse the reference genome into a dictionary
         records = SeqIO.parse(ref, "fasta", alphabet=IUPAC.unambiguous_dna)
         ref_seq = {record.id: record for record in records}
+
+        # Open and parse the position frequency matrix
         with open(pfm, "r") as pfm:
             matrix = motifs.parse(pfm, "jaspar")[0]
             pwm = matrix.counts.normalize(pseudocounts=.5)
             pssm = pwm.log_odds()
 
+        # Open the output file and write the header line
         with open(output + "_centeredpeaks.txt", "w") as outfile:
             header = ["CHROM", "START", "END", "STRAND", "CONTAINS_CONSENSUS",
                       "HIT_SEQ", "SEQ"]
             outfile.write("\t".join(header) + "\n")
+
+            # Write a line for each centered peak in the output file
             for peak in peaks:
                 split_peak = peak.strip().split("\t")
                 peak_chrom = split_peak[0]
@@ -48,15 +78,36 @@ def find_pwm_hits(narrow_peak, reference, pfm, output):
 
 def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
                   hits, matrix):
+    """
+    Recenter peaks on the best hit against the position frequency matrix
+
+    Args:
+        out_handle (handle)
+        ref_seq (dict) - reference genome sequence stored as a dictionary
+        chrom (str) - chromosome identifier
+        seq_start (int) - start position of the putative binding sequence
+        seq_end (int) - end position of the putative binding sequence
+        slop (int) - amount to extend out from the center of the peak on either
+            side
+        hits (list) - list of hits against pfm in the sequence
+        matrix (pfm matrix) - parsed position frequency matrix
+    """
+
+    # If hits against the pfm are found
     if hits:
+
+        # Parse the hit for position information
         hit_pos = hits[0][0]
         hit_start = seq_start + hit_pos
         hit_end = seq_start + hit_pos + len(matrix)
         start_adjusted = hit_start - slop
         end_adjusted = hit_end + slop
 
+        # Get the sequence under the peak
         seq = ref_seq[chrom].seq[start_adjusted:end_adjusted]
         rev_seq = seq.reverse_complement()
+
+        # Look for the consensus sequence under the peak
         cons_forward = re.search(str(matrix.consensus), str(seq))
         cons_reverse = re.search(str(matrix.consensus), str(rev_seq))
         if cons_forward or cons_reverse:
@@ -64,14 +115,18 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
         else:
             contains_cons = 0
 
+        # Determine if hit against psm was on forward or reverse strand
         if hit_pos < 0:
             strand = "-"
             seq = rev_seq
         else:
             strand = "+"
 
+        # Extract the hit sequence
         hit_seq = seq[slop:slop + len(matrix)]
 
+        # Construct and write the line corresponding to the peak to the output
+        # file
         line = [chrom, start_adjusted, end_adjusted, strand, contains_cons,
                 hit_seq, seq]
 
@@ -80,6 +135,15 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
 
 
 def main(argv):
+    """
+    Find and recenter peaks around the best hit for a given position weight
+    matrix
+
+    Args:
+        argv (list) - list of command line arguments
+    """
+
+    # Construct an argument parser
     parser = argparse.ArgumentParser(description="Call ChIP-seq peaks using \
                                      MACS2 and recenter the peaks on the best \
                                      hit from a position weight matrix")
@@ -99,16 +163,19 @@ def main(argv):
     parser.add_argument("output", help="output file prefix", nargs=1,
                         type=str, metavar="prefix")
 
+    # Parse command line arguments
     args, macs_args = parser.parse_known_args(argv[1:])
 
     output = args.output[0]
     reference = args.reference[0]
     pfm = args.pfm[0]
 
+    # Call peaks
     call_peaks(args.control, args.input, macs_args, output)
 
+    # Find pfm hits, recenter peaks and write to file
     find_pwm_hits(output + "_peaks.narrowPeak", reference, pfm, output)
 
-
+# Read command line arguments if the script is called directly
 if __name__ == "__main__":
     main(sys.argv)
