@@ -15,14 +15,16 @@ setup(name="ChIPShOT",
       include_package_data=True,
       install_requires=[
         "biopython",
+        "cython",
+        "pysam",
         "scipy",
         "tqdm",
       ],
       entry_points={
         "console_scripts": [
-            "download_sra=download_sra:main",
+            "download=download_sra:main",
             "align=align:main",
-            "call_peaks=call_peaks:main"
+            "callpeaks=call_peaks:main"
         ],
       },
       zip_safe=False)
