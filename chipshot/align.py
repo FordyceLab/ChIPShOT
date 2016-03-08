@@ -139,7 +139,7 @@ def main(argv):
         argv (list) - list of command line arguments
     """
 
-    # Construct the parser 
+    # Construct the parser
     parser = argparse.ArgumentParser(description="Filter fastq file(s) and \
                                      align to reference genome.")
     parser.add_argument("--five", help="quality cutoff for all bases working from \
