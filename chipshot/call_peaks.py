@@ -4,6 +4,9 @@ import sys
 from Bio import SeqIO, motifs
 from Bio.Alphabet import IUPAC
 import re
+from collections import Counter
+import pysam
+from tqdm import *
 
 
 def call_peaks(control_bam, treatment_bam, macs_args, output):
@@ -30,7 +33,22 @@ def call_peaks(control_bam, treatment_bam, macs_args, output):
     subprocess.call(args)
 
 
-def find_pwm_hits(narrow_peak, reference, pfm, output):
+def calc_coverage(bam):
+    bam = pysam.AlignmentFile(bam, "rb")
+    coverage = {}
+    for line in tqdm(bam):
+        try:
+            if line.reference_name not in coverage.keys():
+                coverage[line.reference_name] = Counter()
+            for pos in range(line.reference_start,
+                             line.reference_start + len(line.query_sequence)):
+                coverage[line.reference_name][pos] += 1
+        except:
+            pass
+    return coverage
+
+
+def find_pwm_hits(narrow_peak, reference, pfm, output, control_cov, treat_cov):
     """
     Search each peak for the best match against the specified position
     frequency matrix
@@ -54,11 +72,8 @@ def find_pwm_hits(narrow_peak, reference, pfm, output):
             pwm = matrix.counts.normalize(pseudocounts=.5)
             pssm = pwm.log_odds()
 
-        # Open the output file and write the header line
+        # Open the output file
         with open(output + "_centeredpeaks.txt", "w") as outfile:
-            header = ["CHROM", "START", "END", "STRAND", "CONTAINS_CONSENSUS",
-                      "HIT_SEQ", "SEQ"]
-            outfile.write("\t".join(header) + "\n")
 
             # Write a line for each centered peak in the output file
             for peak in peaks:
@@ -73,11 +88,12 @@ def find_pwm_hits(narrow_peak, reference, pfm, output):
                 hits.sort(key=lambda hit: hit[1], reverse=True)
 
                 recenter_peak(outfile, ref_seq, peak_chrom, peak_start,
-                              peak_end, 100, hits, matrix)
+                              peak_end, 100, hits, matrix, control_cov,
+                              treat_cov)
 
 
 def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
-                  hits, matrix):
+                  hits, matrix, control_cov, treat_cov):
     """
     Recenter peaks on the best hit against the position frequency matrix
 
@@ -107,13 +123,10 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
         seq = ref_seq[chrom].seq[start_adjusted:end_adjusted]
         rev_seq = seq.reverse_complement()
 
-        # Look for the consensus sequence under the peak
-        cons_forward = re.search(str(matrix.consensus), str(seq))
-        cons_reverse = re.search(str(matrix.consensus), str(rev_seq))
-        if cons_forward or cons_reverse:
-            contains_cons = 1
-        else:
-            contains_cons = 0
+        # Get the mean coverage across the peak
+        coverage = [treat_cov[chrom][pos] - control_cov[chrom][pos] for pos in
+                    range(start_adjusted, end_adjusted)]
+        mean_cov = sum(coverage) / (end_adjusted - start_adjusted)
 
         # Determine if hit against psm was on forward or reverse strand
         if hit_pos < 0:
@@ -122,13 +135,20 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
         else:
             strand = "+"
 
-        # Extract the hit sequence
-        hit_seq = seq[slop:slop + len(matrix)]
+        # Look for the consensus sequence under the peak
+        cons_forward = re.search(str(matrix.consensus), str(seq))
+        cons_reverse = re.search(str(matrix.consensus), str(rev_seq))
+        contains_cons = cons_forward or cons_reverse
+
+        if contains_cons:
+            color = "255,0,0"
+        else:
+            color = "0,0,255"
 
         # Construct and write the line corresponding to the peak to the output
         # file
-        line = [chrom, start_adjusted, end_adjusted, strand, contains_cons,
-                hit_seq, seq]
+        line = [chrom, start_adjusted, end_adjusted, seq, mean_cov, strand, 0,
+                0, color]
 
         line = [str(element) for element in line]
         out_handle.write("\t".join(line) + "\n")
@@ -171,10 +191,19 @@ def main(argv):
     pfm = args.pfm[0]
 
     # Call peaks
+    print("Calling ChIP-seq peaks...")
     call_peaks(args.control, args.input, macs_args, output)
 
+    # Get coverage for each position
+    print("Calculating coverage for control sample...")
+    control_cov = calc_coverage(args.control)
+    print("Calculating coverage for control sample...")
+    treat_cov = calc_coverage(args.input)
+
     # Find pfm hits, recenter peaks and write to file
-    find_pwm_hits(output + "_peaks.narrowPeak", reference, pfm, output)
+    print("Recentering ChIP-seq peaks...")
+    find_pwm_hits(output + "_peaks.narrowPeak", reference, pfm, output,
+                  control_cov, treat_cov)
 
 # Read command line arguments if the script is called directly
 if __name__ == "__main__":
