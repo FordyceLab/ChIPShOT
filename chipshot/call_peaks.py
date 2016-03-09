@@ -9,7 +9,7 @@ import pysam
 from tqdm import *
 
 
-def call_peaks(control_bam, treatment_bam, macs_args, output):
+def call_peaks(control_bam, treatment_bam, macs_args, output, reference):
     """
     Provide an interface to MACS2 to call peaks from ChIP-seq data
 
@@ -18,10 +18,12 @@ def call_peaks(control_bam, treatment_bam, macs_args, output):
         treatment_bam (str) - file path to the treatment bam file
         macs_args (list) - command line arguments to pass to MACS2
         output (str) - prefix for output files
+        reference (str) - path to the reference genome fasta file
     """
 
     # Construct the call
-    args = ["macs2", "callpeak", "--nomodel", "-n", output, "-t"]
+    args = ["macs2", "callpeak", "--nomodel", "-g", get_genome_size(reference),
+            "-n", output, "-t"]
     args.extend(treatment_bam)
 
     if control_bam != "":
