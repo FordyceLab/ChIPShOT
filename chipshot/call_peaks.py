@@ -242,18 +242,16 @@ def main(argv):
 
     # Call peaks
     print("Calling ChIP-seq peaks...")
-    call_peaks(args.control, args.input, macs_args, output)
+    call_peaks(args.control, args.input, macs_args, output, reference)
 
     # Get coverage for each position
-    print("Calculating coverage for control sample...")
-    control_cov = calc_coverage(args.control)
-    print("Calculating coverage for control sample...")
-    treat_cov = calc_coverage(args.input)
+    print("Calculating coverage for treatment sample...")
+    treat_cov = calc_coverage(args.input[0])
 
     # Find pfm hits, recenter peaks and write to file
     print("Recentering ChIP-seq peaks...")
     find_pwm_hits(output + "_peaks.narrowPeak", reference, pfm, output,
-                  control_cov, treat_cov)
+                  treat_cov)
 
 # Read command line arguments if the script is called directly
 if __name__ == "__main__":
