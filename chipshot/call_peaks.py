@@ -73,7 +73,25 @@ def calc_coverage(bam):
     return coverage
 
 
-def find_pwm_hits(narrow_peak, reference, pfm, output, control_cov, treat_cov):
+def get_genome_size(reference):
+    """
+    Get the effective genome size of a reference genome. Per MACS2
+    documentation, this is .7-.9 * genome size. For simplicity, .9 is chosen
+    here.
+
+    Args:
+        reference (str) - path to referece genome
+
+    Return:
+        The estimated effective mapping size of the genome.
+    """
+
+    with open(reference, "r") as ref:
+        records = SeqIO.parse(ref, "fasta", alphabet=IUPAC.unambiguous_dna)
+        return str(round(sum([len(record.seq) for record in records]) * .9))
+
+
+def find_pwm_hits(narrow_peak, reference, pfm, output, treat_cov):
     """
     Search each peak for the best match against the specified position
     frequency matrix
