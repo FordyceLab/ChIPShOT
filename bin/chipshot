@@ -9,6 +9,9 @@ subcommand = args[0]
 if subcommand == "download":
     chipshot.download_sra.main(args)
 
+if subcommand == "cleanref":
+    chipshot.clean_reference.main(args)
+
 if subcommand == "align":
     chipshot.align.main(args)
 
