@@ -136,13 +136,14 @@ def find_pwm_hits(narrow_peak, reference, pfm, output, treat_cov):
                               treat_cov)
 
 
-def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
-                  hits, matrix, control_cov, treat_cov):
+def recenter_peak(out_bed_handle, out_fasta_handle, ref_seq, chrom, seq_start,
+                  seq_end, slop, hits, matrix, treat_cov):
     """
     Recenter peaks on the best hit against the position frequency matrix
 
     Args:
-        out_handle (handle)
+        out_bed_handle (handle) - handle for the output bed file
+        out_fasta_handle (handle) - handle for the output fasta file
         ref_seq (dict) - reference genome sequence stored as a dictionary
         chrom (str) - chromosome identifier
         seq_start (int) - start position of the putative binding sequence
@@ -168,9 +169,9 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
         rev_seq = seq.reverse_complement()
 
         # Get the mean coverage across the peak
-        coverage = [treat_cov[chrom][pos] - control_cov[chrom][pos] for pos in
-                    range(start_adjusted, end_adjusted)]
-        mean_cov = sum(coverage) / (end_adjusted - start_adjusted)
+        coverage = [treat_cov[chrom][pos]for pos in
+                    range(hit_start, hit_end)]
+        mean_cov = sum(coverage) / (hit_end - hit_start)
 
         # Determine if hit against psm was on forward or reverse strand
         if hit_pos < 0:
@@ -190,12 +191,17 @@ def recenter_peak(out_handle, ref_seq, chrom, seq_start, seq_end, slop,
             color = "0,0,255"
 
         # Construct and write the line corresponding to the peak to the output
-        # file
+        # BED format file
         line = [chrom, start_adjusted, end_adjusted, seq, mean_cov, strand, 0,
                 0, color]
 
         line = [str(element) for element in line]
-        out_handle.write("\t".join(line) + "\n")
+        out_bed_handle.write("\t".join(line) + "\n")
+
+        # Write the centered peak sequence to a FASTA file to be used by
+        # DNAShapeR to examine DNA shape
+        out_fasta_handle.write("> {} | {}\n{}\n".format(chrom, start_adjusted,
+                                                        seq))
 
 
 def main(argv):
