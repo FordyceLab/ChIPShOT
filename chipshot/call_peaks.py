@@ -116,7 +116,8 @@ def find_pwm_hits(narrow_peak, reference, pfm, output, treat_cov):
             pssm = pwm.log_odds()
 
         # Open the output file
-        with open(output + "_centeredpeaks.txt", "w") as outfile:
+        with open(output + "_centeredpeaks.bed", "w") as out_bed, \
+                open(output + "_centeredpeaks.fasta", "w") as out_fasta:
 
             # Write a line for each centered peak in the output file
             for peak in peaks:
@@ -130,8 +131,8 @@ def find_pwm_hits(narrow_peak, reference, pfm, output, treat_cov):
 
                 hits.sort(key=lambda hit: hit[1], reverse=True)
 
-                recenter_peak(outfile, ref_seq, peak_chrom, peak_start,
-                              peak_end, 100, hits, matrix, control_cov,
+                recenter_peak(out_bed, out_fasta, ref_seq, peak_chrom,
+                              peak_start, peak_end, 100, hits, matrix,
                               treat_cov)
 
 
