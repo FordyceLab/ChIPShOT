@@ -76,7 +76,7 @@ def search(gsm, email, dump_fq, dump_sam, output):
               .format(acc=accession))
 
         if append_acc:
-            f = output + accession
+            f = output + "_" + accession
         else:
             f = output
 
