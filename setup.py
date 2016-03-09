@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name="ChIPShOT",
       version="0.1",
@@ -20,11 +20,5 @@ setup(name="ChIPShOT",
         "scipy",
         "tqdm",
       ],
-      entry_points={
-        "console_scripts": [
-            "download=download_sra:main",
-            "align=align:main",
-            "callpeaks=call_peaks:main"
-        ],
-      },
+      scripts=['bin/chipshot'],
       zip_safe=False)
