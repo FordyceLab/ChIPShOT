@@ -36,12 +36,35 @@ def call_peaks(control_bam, treatment_bam, macs_args, output, reference):
 
 
 def calc_coverage(bam):
+    """
+    Calculate coverage at each genomic position from a bam file
+
+    Args:
+        bam (str) - file path to bam from which to calculate coverage
+
+    Return:
+        Genome coverage as a dictioary of Counter objects, one for each
+        chromosome.
+    """
+
+    # Read the bam file
     bam = pysam.AlignmentFile(bam, "rb")
+
+    # Initialize a coverage dictionary
     coverage = {}
+
+    # For each line, with a nice progress meter
     for line in tqdm(bam):
+
+        # The pysam bam parser doesn't like unmapped reads, so skip these
         try:
+            # If a key in the coverage dictioary does not exist for the current
+            # chromosome, add one with a Counter for the positions
             if line.reference_name not in coverage.keys():
                 coverage[line.reference_name] = Counter()
+
+            # Update the appropriate entry in the appropriate counter each
+            # time a read covers that position
             for pos in range(line.reference_start,
                              line.reference_start + len(line.query_sequence)):
                 coverage[line.reference_name][pos] += 1
