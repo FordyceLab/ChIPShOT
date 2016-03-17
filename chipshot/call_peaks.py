@@ -8,6 +8,7 @@ from collections import Counter
 import pysam
 from tqdm import *
 
+# Authored by: Tyler Shimko
 
 def call_peaks(control_bam, treatment_bam, macs_args, output, reference):
     """

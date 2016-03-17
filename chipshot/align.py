@@ -4,6 +4,7 @@ import argparse
 from Bio import SeqIO
 from tqdm import *
 
+# Authored by: Tyler Shimko
 
 def fastq_filter(fastq, output, mean_threshold, five_prime_thresh,
                  three_prime_thresh, both_ends_thresh, min_length):

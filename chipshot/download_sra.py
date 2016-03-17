@@ -6,6 +6,7 @@ from urllib.request import urlopen
 from Bio import Entrez
 import xml.etree.ElementTree as ET
 
+# Authored by: Tyler Shimko
 
 def search(sample_id, email, dump_fq, dump_sam, output):
     """
