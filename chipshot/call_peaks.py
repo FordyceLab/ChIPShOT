@@ -201,8 +201,8 @@ def recenter_peak(out_bed_handle, out_fasta_handle, ref_seq, chrom, seq_start,
 
         # Write the centered peak sequence to a FASTA file to be used by
         # DNAShapeR to examine DNA shape
-        out_fasta_handle.write("> {} | {}\n{}\n".format(chrom, start_adjusted,
-                                                        seq))
+        out_fasta_handle.write(">{}|{}\n{}\n".format(chrom, start_adjusted,
+                                                     seq))
 
 
 def main(argv):
